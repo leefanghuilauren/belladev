@@ -32,7 +32,7 @@ elif page == "📊 Development Dashboard":
     conn = st.connection("gsheets", type=GSheetsConnection)
     
     # Your specific Google Sheet URL
-    sheet_url = "https://docs.google.com/spreadsheets/d/1hPtZ-gEO0uguGBA_y8_DciILJNdL7RajMeoEy6bRIZY/edit"
+   sheet_url = "https://docs.google.com/spreadsheets/d/1hPtZ-gEO0uguGBA_y8_DciILJNdL7RajMeoEy6bRIZY/edit"
     
     # Read the raw data and the LLM summaries, caching for 10 minutes
     raw_data = conn.read(spreadsheet=sheet_url, worksheet="Form Responses 1", ttl="10m")
