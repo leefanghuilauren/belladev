@@ -2,9 +2,13 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
+import google.generativeai as genai
 
 # Set up the app layout and title
 st.set_page_config(page_title="Isabella's Tracker", layout="wide")
+
+# Configure the API key from Streamlit secrets
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Create Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -17,10 +21,8 @@ if page == "📝 Log a Feed":
     st.title("Log Isabella's Feed")
     st.write("Fill out the form below. Data automatically syncs to the Google Sheet.")
     
-    # The specific Google Form src link without extra spaces or line breaks
-    form_url = "https://docs.google.com/forms/d/e/1FAIpQLSdDpKJUHwJrlvpogw00KApeINNN_FucbYxdWu4n40RCOjeqtg/viewform?embedded=true"
-    
     # Embed the form using an iframe
+    form_url = "https://docs.google.com/forms/d/e/1FAIpQLSdDpKJUHwJrlvpogw00KApeINNN_FucbYxdWu4n40RCOjeqtg/viewform?embedded=true"
     components.iframe(form_url, height=968, scrolling=True)
 
 # -----------------------------------------
@@ -72,96 +74,78 @@ elif page == "📊 Development Dashboard":
         weekly_stats = daily_stats[daily_stats['Week'] == selected_week]
           
         if not weekly_stats.empty:
-            # 4. Key Metrics Layout (Grabbing the latest day in the selected week)
+            # 4. Calculate Exact Developmental Ages
             latest_day = weekly_stats.iloc[-1]
+            current_reference_date = latest_day.name
             
+            DOB = pd.to_datetime("2026-07-23").date()
+            DUE_DATE = DOB + pd.Timedelta(days=23) # 40 weeks - 36w5d = 23 days premature
+            
+            chronological_days = (current_reference_date - DOB).days
+            chronological_weeks = chronological_days // 7
+            
+            corrected_days = (current_reference_date - DUE_DATE).days
+            corrected_weeks = corrected_days // 7 if corrected_days >= 0 else 0
+            
+            # 5. Key Metrics Layout
             st.subheader("Current Snapshot (Latest Day in Week)")
+            st.write(f"**Chronological Age:** {chronological_weeks} weeks | **Corrected Age:** {corrected_weeks} weeks")
+            
             col1, col2, col3 = st.columns(3)
             col1.metric("Daily Volume", f"{int(latest_day['Total Volume'])} ml")
             col2.metric("3-Day Avg Volume", f"{int(latest_day['3-Day Avg Volume'])} ml")
             col3.metric("3-Day Avg Breast Milk", f"{int(latest_day['3-Day Avg BM %'])}%")
             
-            # 5. Visual Trends
-            st.subheader("Volume Trends: Daily vs 3-Day Average")
-            # Using a line chart is much cleaner for comparing moving averages
-            st.line_chart(weekly_stats[['Total Volume', '3-Day Avg Volume']])
-            
-            st.subheader("Breast Milk Ratio: Daily vs 3-Day Average")
-            st.line_chart(weekly_stats[['BM %', '3-Day Avg BM %']])
-            
             st.subheader("Daily Intake Breakdown")
-            # Keeping the bar chart for the raw BM vs Formula split
+            # Keeping only the bar chart for the raw BM vs Formula split
             st.bar_chart(weekly_stats[['Breast Milk', 'Formula']])
+            
+            # 6. LLM Summary Section
+            st.subheader(f"Development Insights: Week {selected_week}")
+            try:
+                summary_text = llm_data[llm_data['Week'] == selected_week]['Summary'].iloc[0]
+                st.info(summary_text)
+            except (IndexError, KeyError):
+                st.info("No LLM summary has been generated for this week yet.")
+
+            # On-Demand LLM Generation and Saving
+            if st.button(f"Generate & Save Insight for Week {selected_week}"):
+                with st.spinner("Analyzing developmental data & writing to Google Sheets..."):
+                    
+                    prompt = f"""
+                    Isabella was born prematurely at 36 weeks and 5 days. 
+                    Her chronological age is {chronological_weeks} weeks.
+                    Her corrected age is {corrected_weeks} weeks.
+                    
+                    This week, she averaged {int(latest_day['3-Day Avg Volume'])} ml of milk per day.
+                    Her intake is {int(latest_day['3-Day Avg BM %'])}% breast milk.
+                    
+                    Analyze this feeding data. Correlate it with standard developmental milestones, 
+                    physical growth spurts, and cognitive changes, explicitly comparing expectations 
+                    for her chronological age versus her corrected premature age. 
+                    Keep the tone supportive and informative.
+                    """
+                    
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    response = model.generate_content(prompt)
+                    new_summary = response.text
+                    
+                    # Save to Google Sheets
+                    current_llm_df = conn.read(spreadsheet=sheet_url, worksheet="LLM_Summaries", ttl=0)
+                    
+                    if not current_llm_df.empty and 'Week' in current_llm_df.columns:
+                        current_llm_df = current_llm_df[current_llm_df['Week'] != selected_week]
+                        
+                    new_row = pd.DataFrame([{"Week": selected_week, "Summary": new_summary}])
+                    updated_llm_df = pd.concat([current_llm_df, new_row], ignore_index=True)
+                    
+                    conn.update(worksheet="LLM_Summaries", data=updated_llm_df)
+                    st.cache_data.clear()
+                    
+                    st.success("Analysis Complete & Saved permanently to your Google Sheet!")
+                    st.write(new_summary)
             
         else:
             st.write("No feeding data logged for this timeframe.")
     else:
         st.warning("No data found in the spreadsheet yet. Submit a test response through the form!")
-
-import google.generativeai as genai
-import datetime
-
-# Configure the API key from Streamlit secrets
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
-# --- Add this right before your Key Metrics Layout ---
-
-# 1. Calculate Exact Developmental Ages
-DOB = pd.to_datetime("2026-07-23").date()
-DUE_DATE = DOB + pd.Timedelta(days=23) # 40 weeks - 36w5d = 23 days premature
-
-# Use the latest day of the selected week as the reference point
-current_reference_date = latest_day.name
-
-chronological_days = (current_reference_date - DOB).days
-chronological_weeks = chronological_days // 7
-
-corrected_days = (current_reference_date - DUE_DATE).days
-corrected_weeks = corrected_days // 7 if corrected_days >= 0 else 0
-
-st.write(f"**Chronological Age:** {chronological_weeks} weeks | **Corrected Age:** {corrected_weeks} weeks")
-
-# 2. On-Demand LLM Generation and Saving
-if st.button(f"Generate & Save Insight for Week {selected_week}"):
-    with st.spinner("Analyzing developmental data & writing to Google Sheets..."):
-        
-        # Build the dynamic prompt comparing actual vs corrected age
-        prompt = f"""
-        Isabella was born prematurely at 36 weeks and 5 days. 
-        Her chronological age is {chronological_weeks} weeks.
-        Her corrected age is {corrected_weeks} weeks.
-        
-        This week, she averaged {int(latest_day['3-Day Avg Volume'])} ml of milk per day.
-        Her intake is {int(latest_day['3-Day Avg BM %'])}% breast milk.
-        
-        Analyze this feeding data. Correlate it with standard developmental milestones, 
-        physical growth spurts, and cognitive changes, explicitly comparing expectations 
-        for her chronological age versus her corrected premature age. 
-        Keep the tone supportive and informative.
-        """
-        
-        # Call the Gemini model
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        new_summary = response.text
-        
-        # Save to Google Sheets
-        # Pull the absolute latest version of the sheet, bypassing cache
-        current_llm_df = conn.read(spreadsheet=sheet_url, worksheet="LLM_Summaries", ttl=0)
-        
-        # Remove any existing summary for this specific week so we don't duplicate
-        if not current_llm_df.empty and 'Week' in current_llm_df.columns:
-            current_llm_df = current_llm_df[current_llm_df['Week'] != selected_week]
-            
-        # Append the new insight
-        new_row = pd.DataFrame([{"Week": selected_week, "Summary": new_summary}])
-        updated_llm_df = pd.concat([current_llm_df, new_row], ignore_index=True)
-        
-        # Push the update to the spreadsheet
-        conn.update(worksheet="LLM_Summaries", data=updated_llm_df)
-        
-        # Clear Streamlit's cache so the dashboard immediately reflects the new save
-        st.cache_data.clear()
-        
-        st.success("Analysis Complete & Saved permanently to your Google Sheet!")
-        st.write(new_summary)
