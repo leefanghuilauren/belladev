@@ -53,11 +53,22 @@ elif page == "📊 Development Dashboard":
     st.subheader("Weekly Snapshot")
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Feeds", len(weekly_feeds))
-    col2.metric("Avg Ounces per Feed", round(weekly_feeds['Ounces'].mean(), 1))
-    col3.metric("Total Ounces", weekly_feeds['Ounces'].sum())
     
-    # 5. Visual Trends
-    st.subheader("Daily Intake Trend")
-    # Group by date for a clean chart
-    daily_intake = weekly_feeds.groupby('Timestamp')['Ounces'].sum()
-    st.bar_chart(daily_intake)
+    # Updated to use 'Amount' column
+    col2.metric("Avg Intake per Feed (ml)", round(weekly_feeds['Amount'].mean(), 1))
+    col3.metric("Total Intake (ml)", weekly_feeds['Amount'].sum())
+    
+    # 5. Visual Trends: Breast Milk vs. Formula
+    st.subheader("Intake Trends: Breast Milk vs. Formula")
+    
+    # Ensure your 'Date' column is formatted correctly for Streamlit charts
+    weekly_feeds['Date'] = pd.to_datetime(weekly_feeds['Date']).dt.date
+    
+    # Group the data by Date and Type, summing the Amount
+    intake_by_type = weekly_feeds.groupby(['Date', 'Type'])['Amount'].sum().reset_index()
+    
+    # Pivot so Date is the X-axis, and Breast Milk/Formula are the distinct bars
+    trend_data = intake_by_type.pivot(index='Date', columns='Type', values='Amount').fillna(0)
+    
+    # Render the chart
+    st.bar_chart(trend_data)
