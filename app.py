@@ -110,42 +110,45 @@ elif page == "📊 Development Dashboard":
 
             # On-Demand LLM Generation and Saving
             if st.button(f"Generate & Save Insight for Week {selected_week}"):
-                with st.spinner("Analyzing developmental data & writing to Google Sheets..."):
+                
+                # Safety check: Verify the key exists before trying to use it
+                if "GEMINI_API_KEY" not in st.secrets:
+                    st.error("Streamlit still cannot find 'GEMINI_API_KEY'. Double-check your Secrets spelling and formatting.")
+                else:
+                    # Configure the key safely inside the button action
+                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                     
-                    prompt = f"""
-                    Isabella was born prematurely at 36 weeks and 5 days. 
-                    Her chronological age is {chronological_weeks} weeks.
-                    Her corrected age is {corrected_weeks} weeks.
-                    
-                    This week, she averaged {int(latest_day['3-Day Avg Volume'])} ml of milk per day.
-                    Her intake is {int(latest_day['3-Day Avg BM %'])}% breast milk.
-                    
-                    Analyze this feeding data. Correlate it with standard developmental milestones, 
-                    physical growth spurts, and cognitive changes, explicitly comparing expectations 
-                    for her chronological age versus her corrected premature age. 
-                    Keep the tone supportive and informative.
-                    """
-                    
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content(prompt)
-                    new_summary = response.text
-                    
-                    # Save to Google Sheets
-                    current_llm_df = conn.read(spreadsheet=sheet_url, worksheet="LLM_Summaries", ttl=0)
-                    
-                    if not current_llm_df.empty and 'Week' in current_llm_df.columns:
-                        current_llm_df = current_llm_df[current_llm_df['Week'] != selected_week]
+                    with st.spinner("Analyzing developmental data & writing to Google Sheets..."):
                         
-                    new_row = pd.DataFrame([{"Week": selected_week, "Summary": new_summary}])
-                    updated_llm_df = pd.concat([current_llm_df, new_row], ignore_index=True)
-                    
-                    conn.update(worksheet="LLM_Summaries", data=updated_llm_df)
-                    st.cache_data.clear()
-                    
-                    st.success("Analysis Complete & Saved permanently to your Google Sheet!")
-                    st.write(new_summary)
-            
-        else:
-            st.write("No feeding data logged for this timeframe.")
-    else:
-        st.warning("No data found in the spreadsheet yet. Submit a test response through the form!")
+                        prompt = f"""
+                        Isabella was born prematurely at 36 weeks and 5 days. 
+                        Her chronological age is {chronological_weeks} weeks.
+                        Her corrected age is {corrected_weeks} weeks.
+                        
+                        This week, she averaged {int(latest_day['3-Day Avg Volume'])} ml of milk per day.
+                        Her intake is {int(latest_day['3-Day Avg BM %'])}% breast milk.
+                        
+                        Analyze this feeding data. Correlate it with standard developmental milestones, 
+                        physical growth spurts, and cognitive changes, explicitly comparing expectations 
+                        for her chronological age versus her corrected premature age. 
+                        Keep the tone supportive and informative.
+                        """
+                        
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        response = model.generate_content(prompt)
+                        new_summary = response.text
+                        
+                        # Save to Google Sheets
+                        current_llm_df = conn.read(spreadsheet=sheet_url, worksheet="LLM_Summaries", ttl=0)
+                        
+                        if not current_llm_df.empty and 'Week' in current_llm_df.columns:
+                            current_llm_df = current_llm_df[current_llm_df['Week'] != selected_week]
+                            
+                        new_row = pd.DataFrame([{"Week": selected_week, "Summary": new_summary}])
+                        updated_llm_df = pd.concat([current_llm_df, new_row], ignore_index=True)
+                        
+                        conn.update(worksheet="LLM_Summaries", data=updated_llm_df)
+                        st.cache_data.clear()
+                        
+                        st.success("Analysis Complete & Saved permanently to your Google Sheet!")
+                        st.write(new_summary)
