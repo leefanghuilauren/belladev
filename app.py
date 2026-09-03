@@ -110,7 +110,7 @@ import google.generativeai as genai
 import datetime
 
 # Configure the API key from Streamlit secrets
-genai.configure(api_key=st.secrets["AQ.Ab8RN6LvG43kL_1So9qIHNxnfhV3llO7eoZmRtudf4yVDCy9Zw"])
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # --- Add this right before your Key Metrics Layout ---
 
