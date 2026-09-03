@@ -111,12 +111,11 @@ elif page == "📊 Development Dashboard":
             # On-Demand LLM Generation and Saving
             if st.button(f"Generate & Save Insight for Week {selected_week}"):
                 
-                # Safety check: Verify the key exists before trying to use it
-                if "GEMINI_API_KEY" not in st.secrets:
-                    st.error("Streamlit still cannot find 'GEMINI_API_KEY'. Double-check your Secrets spelling and formatting.")
+                if not user_api_key:
+                    st.error("Please paste your Gemini API key in the sidebar first.")
                 else:
-                    # Configure the key safely inside the button action
-                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                    # Configure using the text input field
+                    genai.configure(api_key=user_api_key)
                     
                     with st.spinner("Analyzing developmental data & writing to Google Sheets..."):
                         
