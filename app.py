@@ -70,15 +70,7 @@ elif page == "📊 Development Dashboard":
         
         # Filter down to the selected week for display
         weekly_stats = daily_stats[daily_stats['Week'] == selected_week]
-        
-        # LLM Summary Section
-        st.subheader(f"Development Insights: Week {selected_week}")
-        try:
-            summary_text = llm_data[llm_data['Week'] == selected_week]['Summary'].iloc[0]
-            st.info(summary_text)
-        except (IndexError, KeyError):
-            st.info("No LLM summary has been generated for this week yet.")
-        
+          
         if not weekly_stats.empty:
             # 4. Key Metrics Layout (Grabbing the latest day in the selected week)
             latest_day = weekly_stats.iloc[-1]
