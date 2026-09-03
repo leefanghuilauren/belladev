@@ -27,13 +27,37 @@ if page == "📝 Log a Feed":
 elif page == "📊 Development Dashboard":
     st.title("Isabella's Development Dashboard")
     
-    # Placeholder for where you will connect the Google Sheet
-    # conn = st.connection("gsheets", type=GSheetsConnection)
+    # 1. Connect to the Google Sheet (Requires secrets configured in Streamlit)
+    from streamlit_gsheets import GSheetsConnection
+    conn = st.connection("gsheets", type=GSheetsConnection)
     
-    st.subheader("Weekly LLM Insights")
-    # Fetch and display the markdown summaries here
-    st.info("Week 12: Isabella is showing increased head control and transitioning to...")
+    # Read the raw data and the LLM summaries, caching for 10 minutes
+    raw_data = conn.read(worksheet="Form Responses 1", ttl="10m")
+    llm_data = conn.read(worksheet="LLM_Summaries", ttl="10m")
     
-    st.subheader("Feeding Trends")
-    # Fetch raw data and display charts here
-    # st.bar_chart(feeding_data)
+    # 2. Sidebar Filters
+    # Assuming your data has a 'Week' column 
+    week_list = raw_data['Week'].dropna().unique()
+    selected_week = st.sidebar.selectbox("Select Week to View", week_list)
+    
+    # Filter data for the selected week
+    weekly_feeds = raw_data[raw_data['Week'] == selected_week]
+    
+    # 3. LLM Summary Section
+    st.subheader(f"Development Insights: Week {selected_week}")
+    # Extract the text summary for this specific week
+    summary_text = llm_data[llm_data['Week'] == selected_week]['Summary'].iloc[0]
+    st.info(summary_text)
+    
+    # 4. Key Metrics Layout
+    st.subheader("Weekly Snapshot")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Feeds", len(weekly_feeds))
+    col2.metric("Avg Ounces per Feed", round(weekly_feeds['Ounces'].mean(), 1))
+    col3.metric("Total Ounces", weekly_feeds['Ounces'].sum())
+    
+    # 5. Visual Trends
+    st.subheader("Daily Intake Trend")
+    # Group by date for a clean chart
+    daily_intake = weekly_feeds.groupby('Timestamp')['Ounces'].sum()
+    st.bar_chart(daily_intake)
