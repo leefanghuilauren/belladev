@@ -7,12 +7,13 @@ import google.generativeai as genai
 # Set up the app layout and title
 st.set_page_config(page_title="Isabella's Tracker", layout="wide")
 
-# Configure the API key from Streamlit secrets
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
 # Create Sidebar Navigation
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to:", ["📝 Log a Feed", "📊 Development Dashboard"])
+
+st.sidebar.divider()
+# Define the variable globally in the sidebar so it always exists
+user_api_key = st.sidebar.text_input("Enter Gemini API Key", type="password")
 
 # -----------------------------------------
 # PAGE 1: GOOGLE FORM EMBEDDING
@@ -110,11 +111,9 @@ elif page == "📊 Development Dashboard":
 
             # On-Demand LLM Generation and Saving
             if st.button(f"Generate & Save Insight for Week {selected_week}"):
-                
                 if not user_api_key:
-                    st.error("Please paste your Gemini API key in the sidebar first.")
+                    st.error("Please paste your Gemini API key into the sidebar menu first.")
                 else:
-                    # Configure using the text input field
                     genai.configure(api_key=user_api_key)
                     
                     with st.spinner("Analyzing developmental data & writing to Google Sheets..."):
@@ -151,3 +150,8 @@ elif page == "📊 Development Dashboard":
                         
                         st.success("Analysis Complete & Saved permanently to your Google Sheet!")
                         st.write(new_summary)
+            
+        else:
+            st.write("No feeding data logged for this timeframe.")
+    else:
+        st.warning("No data found in the spreadsheet yet. Submit a test response through the form!")
