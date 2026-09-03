@@ -132,7 +132,7 @@ elif page == "📊 Development Dashboard":
                         Keep the tone supportive and informative.
                         """
                         
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
                         response = model.generate_content(prompt)
                         new_summary = response.text
                         
