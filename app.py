@@ -27,13 +27,16 @@ if page == "📝 Log a Feed":
 elif page == "📊 Development Dashboard":
     st.title("Isabella's Development Dashboard")
     
-    # 1. Connect to the Google Sheet (Requires secrets configured in Streamlit)
+# 1. Connect to the Google Sheet
     from streamlit_gsheets import GSheetsConnection
     conn = st.connection("gsheets", type=GSheetsConnection)
     
+    # Your specific Google Sheet URL
+    sheet_url = "https://docs.google.com/spreadsheets/d/1hPtZ-gEO0uguGBA_y8_DciILJNdL7RajMeoEy6bRIZY/edit"
+    
     # Read the raw data and the LLM summaries, caching for 10 minutes
-    raw_data = conn.read(worksheet="Form Responses 1", ttl="10m")
-    llm_data = conn.read(worksheet="LLM_Summaries", ttl="10m")
+    raw_data = conn.read(spreadsheet=sheet_url, worksheet="Form Responses 1", ttl="10m")
+    llm_data = conn.read(spreadsheet=sheet_url, worksheet="LLM_Summaries", ttl="10m")
     
     # 2. Sidebar Filters
     # Assuming your data has a 'Week' column 
